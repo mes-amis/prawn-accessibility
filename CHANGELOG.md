@@ -3,6 +3,10 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## [1.1.1] - 2026-07-06
+
+- Simplify the gem description. Metadata only — no code changes.
+
 ## [1.1.0] - 2026-07-05
 
 - **Opt in with `tagged: true`.** Documents are tagged only when created with
@@ -37,8 +41,6 @@ Initial release.
   with header detection and `/Scope`. Activated automatically when
   `prawn-table` is present; not a required dependency.
 
-Repackaged from the stalled upstream PRs prawnpdf/pdf-core#67,
-prawnpdf/prawn#1391, and prawnpdf/prawn-table#164.
-
+[1.1.1]: https://github.com/mes-amis/prawn-accessibility/releases/tag/v1.1.1
 [1.1.0]: https://github.com/mes-amis/prawn-accessibility/releases/tag/v1.1.0
 [1.0.0]: https://github.com/mes-amis/prawn-accessibility/releases/tag/v1.0.0
