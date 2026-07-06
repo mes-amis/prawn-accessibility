@@ -2,7 +2,9 @@ name: Release
 
 # Publish to RubyGems on every push to main. If the gem version in
 # lib/prawn/accessibility/version.rb is already on RubyGems, this is a no-op —
-# so a real publish only happens on the commit that bumps VERSION.
+# so a real publish only happens on the commit that bumps VERSION. On a real
+# publish it also creates a matching GitHub release (tag vX.Y.Z) so the GitHub
+# releases mirror the RubyGems releases.
 #
 # Authentication uses RubyGems Trusted Publishing (OIDC) — no API key secret is
 # stored anywhere. One-time setup is required on RubyGems.org: register a
@@ -24,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required for RubyGems trusted publishing (OIDC)
-      contents: read
+      contents: write # required to create the GitHub release + tag
     steps:
       - uses: actions/checkout@v4
         with:
@@ -84,6 +86,35 @@ jobs:
         run: |
           gem build prawn-accessibility.gemspec
           gem push "prawn-accessibility-${VERSION}.gem"
+
+      - name: Create GitHub release
+        if: steps.check.outputs.published == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          tag="v${VERSION}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "GitHub release $tag already exists — skipping."
+            exit 0
+          fi
+
+          # Use this version's CHANGELOG section as the release notes.
+          notes_file="$(mktemp)"
+          awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") { found = 1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[0-9]+\.[0-9]+\.[0-9]+\]:/ { exit }
+            found { print }
+          ' CHANGELOG.md > "$notes_file"
+
+          if [ -s "$notes_file" ]; then
+            gh release create "$tag" --title "$tag" \
+              --target "$GITHUB_SHA" --notes-file "$notes_file"
+          else
+            gh release create "$tag" --title "$tag" \
+              --target "$GITHUB_SHA" --generate-notes
+          fi
 
       - name: Already published (no-op)
         if: steps.check.outputs.published == 'true'
