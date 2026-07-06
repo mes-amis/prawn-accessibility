@@ -1,0 +1,92 @@
+name: Release
+
+# Publish to RubyGems on every push to main. If the gem version in
+# lib/prawn/accessibility/version.rb is already on RubyGems, this is a no-op —
+# so a real publish only happens on the commit that bumps VERSION.
+#
+# Authentication uses RubyGems Trusted Publishing (OIDC) — no API key secret is
+# stored anywhere. One-time setup is required on RubyGems.org: register a
+# trusted publisher (a "pending" one before the first publish) for
+#   repo: mes-amis/prawn-accessibility, workflow: release.yml
+# See https://guides.rubygems.org/trusted-publishing/.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish to RubyGems
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for RubyGems trusted publishing (OIDC)
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - name: Determine gem version
+        id: version
+        run: |
+          version=$(ruby -Ilib -r prawn/accessibility/version \
+            -e 'print Prawn::Accessibility::VERSION')
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "prawn-accessibility version: $version"
+
+      - name: Check whether this version is already on RubyGems
+        id: check
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          name=prawn-accessibility
+          status=$(curl -sS -o versions.json -w '%{http_code}' \
+            "https://rubygems.org/api/v1/versions/${name}.json" || true)
+
+          if [ "$status" = "404" ]; then
+            echo "Gem not yet on RubyGems — first publish."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          elif [ "$status" = "200" ]; then
+            if ruby -rjson -e \
+              'exit(JSON.parse(File.read("versions.json")).any? { |v| v["number"] == ENV["VERSION"] })'; then
+              echo "Version $VERSION already published — nothing to do."
+              echo "published=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Version $VERSION not yet published."
+              echo "published=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "Unexpected HTTP status $status from RubyGems API" >&2
+            exit 1
+          fi
+
+      - name: Run specs before publishing
+        if: steps.check.outputs.published == 'false'
+        run: bundle exec rspec
+
+      - name: Configure RubyGems credentials (trusted publishing)
+        if: steps.check.outputs.published == 'false'
+        uses: rubygems/configure-rubygems-credentials@v2.1.0
+
+      - name: Build and push gem
+        if: steps.check.outputs.published == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          gem build prawn-accessibility.gemspec
+          gem push "prawn-accessibility-${VERSION}.gem"
+
+      - name: Already published (no-op)
+        if: steps.check.outputs.published == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: echo "prawn-accessibility ${VERSION} is already on RubyGems — skipping publish."
