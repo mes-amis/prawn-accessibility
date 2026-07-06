@@ -67,7 +67,7 @@ RSpec.describe 'Table Accessibility' do
 
   describe 'untagged table rendering' do
     it 'does not emit structure tags when not marked' do
-      plain_pdf = Prawn::Document.new(marked: false, margin: 0)
+      plain_pdf = Prawn::Document.new(margin: 0)
       data = [['Name', 'Age'], ['Alice', '30']]
       plain_pdf.table(data, header: true)
       output = plain_pdf.render
@@ -79,11 +79,11 @@ RSpec.describe 'Table Accessibility' do
   end
 
   describe 'Cell#header?' do
-    # Header flags are applied at draw time (tagged documents only), so we
-    # draw via #table rather than inspecting an undrawn #make_table.
+    # Header flags are applied at construction, so they are available from
+    # #make_table without drawing.
     it 'returns true for cells in header rows' do
       data = [['Name', 'Age'], ['Alice', '30']]
-      table = pdf.table(data, header: true)
+      table = pdf.make_table(data, header: true)
 
       header_cell = table.cells[0, 0]
       data_cell = table.cells[1, 0]
@@ -94,7 +94,7 @@ RSpec.describe 'Table Accessibility' do
 
     it 'returns false when no header is set' do
       data = [['A', 'B'], ['C', 'D']]
-      table = pdf.table(data)
+      table = pdf.make_table(data)
 
       expect(table.cells[0, 0]).not_to be_header
     end

@@ -8,14 +8,13 @@ module Prawn
     # Instance methods included into {Prawn::Document} to provide the
     # high-level tagged-PDF (accessibility) API.
     #
-    # Tagging is on by default for every document once this gem is loaded (see
-    # the initializer shim at the bottom of this file); opt out with
-    # <tt>marked: false</tt>. Everything here is built on Prawn/pdf-core's
-    # *public* API (`renderer`, `state`, `min_version`, `before_render`); no
-    # core class is patched to support it.
+    # Tagging is opt-in: create the document with <tt>marked: true</tt> (see the
+    # initializer shim at the bottom of this file). Everything here is built on
+    # Prawn/pdf-core's *public* API (`renderer`, `state`, `min_version`,
+    # `before_render`); no core class is patched to support it.
     #
     # @example
-    #   pdf = Prawn::Document.new(language: 'en-US')
+    #   pdf = Prawn::Document.new(marked: true, language: 'en-US')
     #   pdf.structure(:H1) { pdf.text 'Document Title' }
     #   pdf.structure(:P)  { pdf.text 'Body paragraph text.' }
     #   pdf.artifact       { pdf.text 'Page 1' } # not read by screen readers
@@ -139,10 +138,10 @@ module Prawn
       end
     end
 
-    # Prepended onto {Prawn::Document#initialize}. Once this gem is loaded,
-    # **every document is tagged for accessibility by default** — no method call
-    # or option is required. Opt out per-document with <tt>marked: false</tt>;
-    # set the document language with <tt>language: 'en-US'</tt>.
+    # Prepended onto {Prawn::Document#initialize} to support the
+    # <tt>Prawn::Document.new(marked: true, language: 'en-US')</tt> API.
+    # Tagging is opt-in: a document is tagged only when <tt>marked: true</tt> is
+    # passed (matching the behavior of the section-508 forks).
     #
     # It strips the accessibility options before delegating to the original
     # initializer (so no change to +VALID_OPTIONS+ is needed), then wires up
@@ -154,7 +153,6 @@ module Prawn
       def initialize(options = {}, &block)
         opts = options.dup
         marked = opts.delete(:marked)
-        marked = true if marked.nil? # tagged by default when this gem is loaded
         language = opts.delete(:language)
 
         # Delegate to the original initializer WITHOUT the block, so we can run

@@ -5,14 +5,15 @@
 # without prawn-table installed is safe.
 #
 # prawn-table hard-instantiates Prawn::Table and offers no hook around cell
-# drawing, so these two `prepend`s are the irreducible patching until upstream
+# drawing, so these three `prepend`s are the irreducible patching until upstream
 # grows render hooks:
 #
-#   1. Prawn::Table#draw            — wrap the whole table in <Table>
-#   2. Prawn::Table::Cell.draw_cells — wrap each row/cell in <TR>/<TH>/<TD>
+#   1. Prawn::Table#initialize      — flag header cells (at construction)
+#   2. Prawn::Table#draw            — wrap the whole table in <Table>
+#   3. Prawn::Table::Cell.draw_cells — wrap each row/cell in <TR>/<TH>/<TD>
 #
-# Both delegate to `super` in the untagged path, so unmarked tables are
-# unchanged. Everything else here is additive (new methods only).
+# #draw and .draw_cells delegate to `super` in the untagged path, so unmarked
+# tables are unchanged. Everything else here is additive (new methods only).
 
 unless defined?(Prawn::Table)
   raise 'prawn/accessibility/table requires prawn-table to be loaded first'
@@ -26,14 +27,20 @@ module Prawn
     #
     # @api private
     module TablePatch
-      # Prepended onto {Prawn::Table}. Wraps drawing in a +<Table>+ structure
-      # element (and flags header cells) when the document is tagged.
+      # Prepended onto {Prawn::Table}. Flags header cells at construction (so
+      # +Cell#header?+ is consistent whether or not the table has been drawn),
+      # and wraps drawing in a +<Table>+ structure element when the document is
+      # tagged.
       #
       # @api private
       module TableInstancePatch
+        def initialize(*args, &block)
+          super
+          mark_header_cells
+        end
+
         def draw
           if @pdf.respond_to?(:tagged?) && @pdf.tagged?
-            mark_header_cells
             @pdf.structure_container(:Table) { super() }
           else
             super
@@ -41,8 +48,6 @@ module Prawn
         end
 
         # Marks cells in header rows as header cells for accessibility.
-        # Computed here at draw time (rather than in the initializer) so no
-        # +#initialize+ patch is needed.
         #
         # @return [void]
         def mark_header_cells

@@ -13,8 +13,7 @@ It layers on top of the **published** `prawn`, `pdf-core`, and (optionally)
 `Prawn::Document`; only a couple of small method wrappers remain (and none in
 `pdf-core`).
 
-**Once installed, every document is tagged by default** — you don't call
-anything to turn it on. Opt out per document with `marked: false`, and output is
+Tagging is opt-in: create a document with `marked: true`. Without it, output is
 byte-for-byte identical to stock Prawn.
 
 ## Installation
@@ -37,8 +36,8 @@ gem 'prawn-table' # optional; enables <Table>/<TR>/<TH>/<TD> tagging
 ```ruby
 require 'prawn-accessibility'
 
-# Tagged by default — set `language:` for the document's /Lang.
-pdf = Prawn::Document.new(language: 'en-US')
+# Opt in with marked: true; set language: for the document's /Lang.
+pdf = Prawn::Document.new(marked: true, language: 'en-US')
 
 pdf.heading(1, 'Annual Report')                                   # <H1>
 pdf.paragraph('Body text that a screen reader will read aloud.')  # <P>
@@ -54,11 +53,7 @@ pdf.table([['Name', 'Age'], ['Alice', '30']], header: true)       # <Table>/<TR>
 pdf.render_file('report.pdf')
 ```
 
-To render a plain, untagged PDF, opt out:
-
-```ruby
-pdf = Prawn::Document.new(marked: false)
-```
+A document created without `marked: true` renders a plain, untagged PDF.
 
 ### API
 
