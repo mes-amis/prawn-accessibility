@@ -1,0 +1,64 @@
+AllCops:
+  TargetRubyVersion: 3.0
+  NewCops: enable
+  SuggestExtensions: false
+
+# Specs are naturally long and use long describe/it blocks.
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - '*.gemspec'
+
+Metrics/MethodLength:
+  Max: 30
+
+Metrics/AbcSize:
+  Max: 30
+
+Metrics/ModuleLength:
+  Max: 150
+
+# structure_tree.rb is vendored verbatim from pdf-core.
+Metrics/ClassLength:
+  Max: 150
+
+# The tagged-cell drawing path is inherently branchy.
+Metrics/CyclomaticComplexity:
+  Max: 12
+Metrics/PerceivedComplexity:
+  Max: 12
+
+# The library patches frozen constants and re-opens core classes on purpose.
+Style/DoubleNegation:
+  Enabled: false
+Style/Documentation:
+  Enabled: false
+Style/OneClassPerFile:
+  Enabled: false
+
+# Match the trailing-comma style of the upstream (prawn) code this gem layers on.
+Style/TrailingCommaInArguments:
+  EnforcedStyleForMultiline: consistent_comma
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: consistent_comma
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: consistent_comma
+
+# `pt` (point) mirrors prawn-table's own parameter naming.
+Naming/MethodParameterName:
+  AllowedNames: [pt, io, id, x, y]
+
+# The conventional gem entry point uses the dashed gem name.
+Naming/FileName:
+  Exclude:
+    - 'lib/prawn-accessibility.rb'
+
+Layout/LineLength:
+  Max: 100
+  Exclude:
+    - 'spec/**/*'
+
+# Ported specs mirror upstream array literals.
+Style/WordArray:
+  Exclude:
+    - 'spec/**/*'
