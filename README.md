@@ -9,9 +9,10 @@ headings, paragraphs, figures, tables, and decorative artifacts — so Prawn can
 produce accessible, tagged PDFs that screen readers can navigate.
 
 It layers on top of the **published** `prawn`, `pdf-core`, and (optionally)
-`prawn-table` gems using `prepend` and additive re-opens — it does **not** fork
-them. When you don't opt in (`marked: true`), output is byte-for-byte identical
-to stock Prawn.
+`prawn-table` gems — it does **not** fork them. The document API plugs in through
+Prawn's own extension registry (`Prawn::Document.extensions`); only a couple of
+small method wrappers remain (and none in `pdf-core`). When you don't opt in,
+output is byte-for-byte identical to stock Prawn.
 
 ## Installation
 
@@ -49,10 +50,20 @@ pdf.table([['Name', 'Age'], ['Alice', '30']], header: true)       # <Table>/<TR>
 pdf.render_file('report.pdf')
 ```
 
+`marked: true` is a shortcut. You can also turn tagging on for a document you
+already have — handy when the document is constructed elsewhere:
+
+```ruby
+pdf = Prawn::Document.new
+pdf.enable_accessibility(language: 'en-US')
+pdf.tagged? # => true
+```
+
 ### API
 
 | Method | Emits |
 |---|---|
+| `pdf.enable_accessibility(language:)` | turn on tagged output (what `marked: true` calls for you) |
 | `pdf.tagged?` | whether the document is in tagged mode |
 | `pdf.structure(tag, attrs) { … }` | a structure element wrapping marked content |
 | `pdf.structure_container(tag, attrs) { … }` | a container whose children mark themselves |
