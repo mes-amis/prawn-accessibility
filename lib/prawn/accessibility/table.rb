@@ -12,7 +12,7 @@
 #   2. Prawn::Table#draw            — wrap the whole table in <Table>
 #   3. Prawn::Table::Cell.draw_cells — wrap each row/cell in <TR>/<TH>/<TD>
 #
-# #draw and .draw_cells delegate to `super` in the untagged path, so unmarked
+# #draw and .draw_cells delegate to `super` in the untagged path, so untagged
 # tables are unchanged. Everything else here is additive (new methods only).
 
 unless defined?(Prawn::Table)

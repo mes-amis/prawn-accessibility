@@ -8,11 +8,10 @@ module Prawn
     # Instance methods included into {Prawn::Document} to provide the
     # high-level tagged-PDF (accessibility) API.
     #
-    # Tagging is opt-in: create the document with <tt>tagged: true</tt> (the
-    # legacy alias <tt>marked: true</tt> also works). See the initializer shim
-    # at the bottom of this file. Everything here is built on Prawn/pdf-core's
-    # *public* API (`renderer`, `state`, `min_version`, `before_render`); no
-    # core class is patched to support it.
+    # Tagging is opt-in: create the document with <tt>tagged: true</tt> (see the
+    # initializer shim at the bottom of this file). Everything here is built on
+    # Prawn/pdf-core's *public* API (`renderer`, `state`, `min_version`,
+    # `before_render`); no core class is patched to support it.
     #
     # @example
     #   pdf = Prawn::Document.new(tagged: true, language: 'en-US')
@@ -141,9 +140,8 @@ module Prawn
 
     # Prepended onto {Prawn::Document#initialize} to support the
     # <tt>Prawn::Document.new(tagged: true, language: 'en-US')</tt> API.
-    # Tagging is opt-in: a document is tagged only when <tt>tagged: true</tt>
-    # (or the deprecated alias <tt>marked: true</tt>, which emits a deprecation
-    # warning) is passed.
+    # Tagging is opt-in: a document is tagged only when <tt>tagged: true</tt> is
+    # passed.
     #
     # It strips the accessibility options before delegating to the original
     # initializer (so no change to +VALID_OPTIONS+ is needed), then wires up
@@ -155,25 +153,13 @@ module Prawn
       def initialize(options = {}, &block)
         opts = options.dup
         tagged = opts.delete(:tagged)
-        marked = opts.delete(:marked) # legacy alias for `tagged:`
         language = opts.delete(:language)
-
-        if options.key?(:marked)
-          warn(
-            '[prawn-accessibility] the `marked:` option is deprecated and will ' \
-            'be removed in a future release; use `tagged:` instead.',
-            category: :deprecated,
-          )
-        end
-
-        # `tagged:` is canonical; fall back to the legacy `marked:` option.
-        enabled = tagged.nil? ? marked : tagged
 
         # Delegate to the original initializer WITHOUT the block, so we can run
         # it ourselves after tagging is wired up.
         super(opts)
 
-        install_accessibility(language) if enabled
+        install_accessibility(language) if tagged
 
         return unless block
 

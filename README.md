@@ -14,8 +14,7 @@ It layers on top of the **published** `prawn`, `pdf-core`, and (optionally)
 `pdf-core`).
 
 Tagging is opt-in: create a document with `tagged: true`. Without it, output is
-byte-for-byte identical to stock Prawn. (The old `marked: true` option still
-works but is deprecated and emits a warning — prefer `tagged: true`.)
+byte-for-byte identical to stock Prawn.
 
 ## Installation
 
