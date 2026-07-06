@@ -12,7 +12,7 @@ RSpec.describe Prawn::Accessibility do
       end
 
       it 'returns false for unmarked documents' do
-        plain = Prawn::Document.new
+        plain = Prawn::Document.new(marked: false)
         expect(plain).to_not(be_tagged)
       end
     end
@@ -46,7 +46,7 @@ RSpec.describe Prawn::Accessibility do
       end
 
       it 'is a no-op for untagged documents' do
-        plain = Prawn::Document.new
+        plain = Prawn::Document.new(marked: false)
         plain.structure(:P) do
           plain.text('Hello')
         end
@@ -93,7 +93,7 @@ RSpec.describe Prawn::Accessibility do
       end
 
       it 'is a no-op for untagged documents' do
-        plain = Prawn::Document.new
+        plain = Prawn::Document.new(marked: false)
         plain.artifact do
           plain.text('Footer')
         end

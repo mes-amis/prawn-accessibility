@@ -9,39 +9,18 @@ module Prawn
     # {Prawn::Document.extensions} registry) to provide the high-level
     # tagged-PDF (accessibility) API.
     #
-    # Tagging is turned on by {#enable_accessibility} — either explicitly, or
-    # automatically when a document is created with <tt>marked: true</tt> (see
-    # the initializer shim at the bottom of this file). Everything here is built
-    # on Prawn/pdf-core's *public* API (`renderer`, `state`, `min_version`,
-    # `before_render`); no core class is patched to support it.
+    # Tagging is on by default for every document once this gem is loaded (see
+    # the initializer shim at the bottom of this file); opt out with
+    # <tt>marked: false</tt>. Everything here is built on Prawn/pdf-core's
+    # *public* API (`renderer`, `state`, `min_version`, `before_render`); no
+    # core class is patched to support it.
     #
     # @example
-    #   pdf = Prawn::Document.new(marked: true, language: 'en-US')
+    #   pdf = Prawn::Document.new(language: 'en-US')
     #   pdf.structure(:H1) { pdf.text 'Document Title' }
     #   pdf.structure(:P)  { pdf.text 'Body paragraph text.' }
     #   pdf.artifact       { pdf.text 'Page 1' } # not read by screen readers
     module DocumentExtensions
-      # Turn on tagged-PDF output for this document. Idempotent.
-      #
-      # Sets `/MarkInfo` (and optionally `/Lang`) on the catalog, creates the
-      # structure tree, bumps the PDF version to 1.7, and registers the tree's
-      # finalization via the renderer's `before_render` hook.
-      #
-      # @param language [String, nil] optional document language (BCP 47 tag)
-      # @return [void]
-      def enable_accessibility(language: nil)
-        return if @accessibility_structure_tree
-
-        catalog = state.store.root.data
-        catalog[:MarkInfo] = { Marked: true }
-        catalog[:Lang] = language if language
-
-        @accessibility_structure_tree = Prawn::Accessibility::StructureTree.new(renderer)
-        renderer.min_version(1.7)
-        tree = @accessibility_structure_tree
-        renderer.before_render { |_state| tree.finalize! }
-      end
-
       # The structure tree for this document, or nil if not tagged.
       #
       # @return [Prawn::Accessibility::StructureTree, nil]
@@ -161,34 +140,52 @@ module Prawn
       end
     end
 
-    # Prepended onto {Prawn::Document#initialize} so the ergonomic
-    # <tt>Prawn::Document.new(marked: true, language: 'en-US')</tt> API keeps
-    # working. This is the *only* method patch in the document layer: it strips
-    # the accessibility options before delegating to the original initializer
-    # (so no change to +VALID_OPTIONS+ is needed), then enables accessibility
-    # and runs the user block — in that order, so the block runs with tagging
-    # already active.
+    # Prepended onto {Prawn::Document#initialize}. Once this gem is loaded,
+    # **every document is tagged for accessibility by default** — no method call
+    # or option is required. Opt out per-document with <tt>marked: false</tt>;
+    # set the document language with <tt>language: 'en-US'</tt>.
     #
-    # It could be removed entirely by requiring callers to call
-    # {DocumentExtensions#enable_accessibility} themselves; it exists purely to
-    # preserve the option-based API without touching option validation.
+    # It strips the accessibility options before delegating to the original
+    # initializer (so no change to +VALID_OPTIONS+ is needed), then wires up
+    # tagging and runs the user block — in that order, so the block runs with
+    # tagging already active.
     #
     # @api private
     module OptionInitializer
       def initialize(options = {}, &block)
         opts = options.dup
         marked = opts.delete(:marked)
+        marked = true if marked.nil? # tagged by default when this gem is loaded
         language = opts.delete(:language)
 
         # Delegate to the original initializer WITHOUT the block, so we can run
-        # it ourselves after accessibility is enabled.
+        # it ourselves after tagging is wired up.
         super(opts)
 
-        enable_accessibility(language: language) if marked
+        install_accessibility(language) if marked
 
         return unless block
 
         block.arity < 1 ? instance_eval(&block) : block[self]
+      end
+
+      private
+
+      # Set up tagged-PDF output: mark the catalog, create the structure tree,
+      # bump the PDF version to 1.7, and finalize the tree at render time via
+      # the renderer's public `before_render` hook.
+      #
+      # @param language [String, nil] optional document language (BCP 47 tag)
+      # @return [void]
+      def install_accessibility(language)
+        catalog = state.store.root.data
+        catalog[:MarkInfo] = { Marked: true }
+        catalog[:Lang] = language if language
+
+        @accessibility_structure_tree = Prawn::Accessibility::StructureTree.new(renderer)
+        renderer.min_version(1.7)
+        tree = @accessibility_structure_tree
+        renderer.before_render { |_state| tree.finalize! }
       end
     end
   end

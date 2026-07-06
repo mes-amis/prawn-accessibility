@@ -67,7 +67,7 @@ RSpec.describe 'Table Accessibility' do
 
   describe 'untagged table rendering' do
     it 'does not emit structure tags when not marked' do
-      plain_pdf = Prawn::Document.new(margin: 0)
+      plain_pdf = Prawn::Document.new(marked: false, margin: 0)
       data = [['Name', 'Age'], ['Alice', '30']]
       plain_pdf.table(data, header: true)
       output = plain_pdf.render

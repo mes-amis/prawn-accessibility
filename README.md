@@ -11,8 +11,11 @@ produce accessible, tagged PDFs that screen readers can navigate.
 It layers on top of the **published** `prawn`, `pdf-core`, and (optionally)
 `prawn-table` gems — it does **not** fork them. The document API plugs in through
 Prawn's own extension registry (`Prawn::Document.extensions`); only a couple of
-small method wrappers remain (and none in `pdf-core`). When you don't opt in,
-output is byte-for-byte identical to stock Prawn.
+small method wrappers remain (and none in `pdf-core`).
+
+**Once installed, every document is tagged by default** — you don't call
+anything to turn it on. Opt out per document with `marked: false`, and output is
+byte-for-byte identical to stock Prawn.
 
 ## Installation
 
@@ -34,7 +37,8 @@ gem 'prawn-table' # optional; enables <Table>/<TR>/<TH>/<TD> tagging
 ```ruby
 require 'prawn-accessibility'
 
-pdf = Prawn::Document.new(marked: true, language: 'en-US')
+# Tagged by default — set `language:` for the document's /Lang.
+pdf = Prawn::Document.new(language: 'en-US')
 
 pdf.heading(1, 'Annual Report')                                   # <H1>
 pdf.paragraph('Body text that a screen reader will read aloud.')  # <P>
@@ -44,26 +48,22 @@ pdf.figure(alt_text: 'Company logo') { pdf.image('logo.png') }    # <Figure> wit
 
 pdf.artifact(type: :Pagination) { pdf.text('Page 1') }            # decorative, not read
 
-# Tables auto-tag when the document is tagged:
+# Tables auto-tag while the document is tagged:
 pdf.table([['Name', 'Age'], ['Alice', '30']], header: true)       # <Table>/<TR>/<TH>/<TD>
 
 pdf.render_file('report.pdf')
 ```
 
-`marked: true` is a shortcut. You can also turn tagging on for a document you
-already have — handy when the document is constructed elsewhere:
+To render a plain, untagged PDF, opt out:
 
 ```ruby
-pdf = Prawn::Document.new
-pdf.enable_accessibility(language: 'en-US')
-pdf.tagged? # => true
+pdf = Prawn::Document.new(marked: false)
 ```
 
 ### API
 
 | Method | Emits |
 |---|---|
-| `pdf.enable_accessibility(language:)` | turn on tagged output (what `marked: true` calls for you) |
 | `pdf.tagged?` | whether the document is in tagged mode |
 | `pdf.structure(tag, attrs) { … }` | a structure element wrapping marked content |
 | `pdf.structure_container(tag, attrs) { … }` | a container whose children mark themselves |
