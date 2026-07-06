@@ -47,13 +47,13 @@ RSpec.describe 'Untagged output is unaffected by prawn-accessibility' do
       expect(output).to_not(include('/TD'))
     end
 
-    it 'leaves cells unflagged as headers' do
+    it 'never flags header cells for an untagged document' do
       pdf = Prawn::Document.new
-      table = pdf.make_table([%w[Name Age], %w[Alice 30]], header: true)
+      # Draws the table; because the document is not tagged, header marking is
+      # skipped entirely — tagging (and its side effects) are fully opt-in.
+      table = pdf.table([%w[Name Age], %w[Alice 30]], header: true)
 
-      # The is_header_cell accessor exists (additive re-open) but plays no
-      # role in output for an untagged document.
-      expect(table.cells[0, 0]).to be_header
+      expect(table.cells[0, 0]).to_not(be_header)
       expect(table.cells[1, 0]).to_not(be_header)
     end
   end

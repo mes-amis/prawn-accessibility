@@ -79,9 +79,11 @@ RSpec.describe 'Table Accessibility' do
   end
 
   describe 'Cell#header?' do
+    # Header flags are applied at draw time (tagged documents only), so we
+    # draw via #table rather than inspecting an undrawn #make_table.
     it 'returns true for cells in header rows' do
       data = [['Name', 'Age'], ['Alice', '30']]
-      table = pdf.make_table(data, header: true)
+      table = pdf.table(data, header: true)
 
       header_cell = table.cells[0, 0]
       data_cell = table.cells[1, 0]
@@ -92,7 +94,7 @@ RSpec.describe 'Table Accessibility' do
 
     it 'returns false when no header is set' do
       data = [['A', 'B'], ['C', 'D']]
-      table = pdf.make_table(data)
+      table = pdf.table(data)
 
       expect(table.cells[0, 0]).not_to be_header
     end

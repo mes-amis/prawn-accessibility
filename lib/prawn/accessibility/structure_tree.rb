@@ -1,17 +1,25 @@
 # frozen_string_literal: true
 
-module PDF
-  module Core
+require_relative 'marked_content'
+
+module Prawn
+  module Accessibility
     # Manages the PDF structure tree for tagged/accessible PDFs.
     #
     # The structure tree provides the logical structure of a document,
     # mapping marked content sequences in page content streams to
     # structure elements (headings, paragraphs, tables, etc.).
     #
+    # It talks to the document exclusively through the *public* renderer API
+    # (`ref!`, `deref`, `add_content`, `state`), so it requires no patches to
+    # any pdf-core class.
+    #
     # PDF spec references: Section 14.7 (Logical Structure)
     #
     # @api private
     class StructureTree
+      include MarkedContent
+
       # @return [PDF::Core::Renderer] owning renderer
       attr_reader :renderer
 
@@ -148,10 +156,10 @@ module PDF
         # Track which struct element owns this MCID on this page
         @parent_tree_map[page_struct_parents][mcid] = elem_ref
 
-        # Emit BDC/EMC in content stream
-        renderer.begin_marked_content_with_properties(tag, { MCID: mcid })
+        # Emit BDC/EMC in content stream (via the MarkedContent mixin)
+        begin_marked_content_with_properties(tag, { MCID: mcid })
         yield if block_given?
-        renderer.end_marked_content
+        end_marked_content
       end
 
       # Mark content as an artifact (decorative, not read by screen readers).
@@ -162,14 +170,12 @@ module PDF
       # @return [void]
       def mark_artifact(artifact_type: nil)
         if artifact_type
-          renderer.begin_marked_content_with_properties(
-            :Artifact, { Type: artifact_type },
-          )
+          begin_marked_content_with_properties(:Artifact, { Type: artifact_type })
         else
-          renderer.begin_marked_content(:Artifact)
+          begin_marked_content(:Artifact)
         end
         yield if block_given?
-        renderer.end_marked_content
+        end_marked_content
       end
 
       # Finalize the structure tree before rendering. Called via
@@ -189,6 +195,15 @@ module PDF
       end
 
       private
+
+      # Forward content emission (used by the MarkedContent mixin) to the
+      # renderer's public API.
+      #
+      # @param str [String]
+      # @return [void]
+      def add_content(str)
+        renderer.add_content(str)
+      end
 
       # The current open structure element, or nil if none.
       #

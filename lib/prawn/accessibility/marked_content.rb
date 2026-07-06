@@ -1,10 +1,15 @@
 # frozen_string_literal: true
 
-module PDF
-  module Core
-    # Provides methods for emitting marked content operators (BMC/BDC/EMC)
-    # in PDF content streams. These operators associate content with structure
-    # elements for accessibility (tagged PDF).
+module Prawn
+  module Accessibility
+    # Emits marked content operators (BMC/BDC/EMC) into a PDF content stream.
+    # These operators associate content with structure elements for
+    # accessibility (tagged PDF).
+    #
+    # This is a mixin: the including object must respond to `add_content(str)`
+    # (as {PDF::Core::Renderer} does). It therefore needs no changes to any
+    # pdf-core class — {StructureTree} includes it and forwards `add_content`
+    # to the renderer.
     #
     # @api private
     module MarkedContent
