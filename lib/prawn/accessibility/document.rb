@@ -5,9 +5,8 @@ require_relative 'structure_tree'
 
 module Prawn
   module Accessibility
-    # Instance methods mixed into {Prawn::Document} (via the supported
-    # {Prawn::Document.extensions} registry) to provide the high-level
-    # tagged-PDF (accessibility) API.
+    # Instance methods included into {Prawn::Document} to provide the
+    # high-level tagged-PDF (accessibility) API.
     #
     # Tagging is on by default for every document once this gem is loaded (see
     # the initializer shim at the bottom of this file); opt out with
@@ -191,5 +190,5 @@ module Prawn
   end
 end
 
-Prawn::Document.extensions << Prawn::Accessibility::DocumentExtensions
+Prawn::Document.include(Prawn::Accessibility::DocumentExtensions)
 Prawn::Document.prepend(Prawn::Accessibility::OptionInitializer)

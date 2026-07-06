@@ -9,9 +9,9 @@ headings, paragraphs, figures, tables, and decorative artifacts — so Prawn can
 produce accessible, tagged PDFs that screen readers can navigate.
 
 It layers on top of the **published** `prawn`, `pdf-core`, and (optionally)
-`prawn-table` gems — it does **not** fork them. The document API plugs in through
-Prawn's own extension registry (`Prawn::Document.extensions`); only a couple of
-small method wrappers remain (and none in `pdf-core`).
+`prawn-table` gems — it does **not** fork them. The document API is mixed into
+`Prawn::Document`; only a couple of small method wrappers remain (and none in
+`pdf-core`).
 
 **Once installed, every document is tagged by default** — you don't call
 anything to turn it on. Opt out per document with `marked: false`, and output is
