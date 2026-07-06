@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 RSpec.describe 'Table Accessibility' do
-  let(:pdf) { Prawn::Document.new(marked: true, language: 'en-US', margin: 0) }
+  let(:pdf) { Prawn::Document.new(tagged: true, language: 'en-US', margin: 0) }
 
   describe 'tagged table rendering' do
     it 'wraps the table in a Table structure element' do

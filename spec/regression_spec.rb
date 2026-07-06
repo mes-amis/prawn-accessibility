@@ -2,10 +2,11 @@
 
 require 'spec_helper'
 
-# Tagging is opt-in: a document is tagged only when created with `marked: true`.
-# These specs guard that a document created WITHOUT it behaves exactly like
-# stock Prawn (every patched method delegates to `super` on the untagged path),
-# so adding this gem to a bundle changes nothing until a document opts in.
+# Tagging is opt-in: a document is tagged only when created with `tagged: true`
+# (or the legacy `marked: true`). These specs guard that a document created
+# WITHOUT it behaves exactly like stock Prawn (every patched method delegates to
+# `super` on the untagged path), so adding this gem to a bundle changes nothing
+# until a document opts in.
 RSpec.describe 'Untagged output is unaffected by prawn-accessibility' do
   describe 'a plain document (no marked: option)' do
     let(:pdf) { Prawn::Document.new }
@@ -56,14 +57,23 @@ RSpec.describe 'Untagged output is unaffected by prawn-accessibility' do
     end
   end
 
-  describe 'opting in with marked: true' do
-    it 'produces a 1.7 tagged PDF' do
-      pdf = Prawn::Document.new(marked: true)
+  describe 'opting in' do
+    it 'produces a 1.7 tagged PDF with tagged: true' do
+      pdf = Prawn::Document.new(tagged: true)
       pdf.heading(1, 'Title')
       output = pdf.render
 
       expect(output).to start_with('%PDF-1.7')
       expect(output).to include('/MarkInfo')
+      expect(output).to include('/StructTreeRoot')
+    end
+
+    it 'also accepts the legacy marked: true option' do
+      pdf = Prawn::Document.new(marked: true)
+      pdf.heading(1, 'Title')
+      output = pdf.render
+
+      expect(output).to start_with('%PDF-1.7')
       expect(output).to include('/StructTreeRoot')
     end
   end
