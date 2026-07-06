@@ -217,9 +217,12 @@ RSpec.describe Prawn::Accessibility::StructureTree do
       end
       structure_tree.end_element
 
+      # Tagged PDFs require version 1.7; the document layer bumps it via
+      # min_version, so mirror that here for this bare-renderer unit test.
+      renderer.min_version(1.7)
       output = renderer.render
 
-      expect(output).to start_with('%PDF')
+      expect(output).to start_with('%PDF-1.7')
       expect(output).to include('/StructTreeRoot')
       expect(output).to include('/StructElem')
     end
