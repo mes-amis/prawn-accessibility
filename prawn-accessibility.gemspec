@@ -14,11 +14,6 @@ Gem::Specification.new do |spec|
     pdf-core, and (optionally) prawn-table gems. It adds a high-level API for
     marking document structure — headings, paragraphs, figures, tables, and
     artifacts — so Prawn can produce Section 508 / WCAG accessible PDFs.
-
-    The behavior originates from the stalled upstream pull requests
-    prawnpdf/pdf-core#67, prawnpdf/prawn#1391, and prawnpdf/prawn-table#164,
-    repackaged here as a standalone gem that patches the released libraries via
-    `prepend`/additive re-opens rather than forking them.
   DESC
 
   spec.homepage    = 'https://github.com/mes-amis/prawn-accessibility'
