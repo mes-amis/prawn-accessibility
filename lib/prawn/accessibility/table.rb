@@ -4,9 +4,9 @@
 # already defined (see prawn/accessibility.rb), so requiring prawn-accessibility
 # without prawn-table installed is safe.
 #
-# prawn-table has no extension registry and hard-instantiates Prawn::Table, so
-# these two `prepend`s are the irreducible patching until upstream grows render
-# hooks:
+# prawn-table hard-instantiates Prawn::Table and offers no hook around cell
+# drawing, so these two `prepend`s are the irreducible patching until upstream
+# grows render hooks:
 #
 #   1. Prawn::Table#draw            — wrap the whole table in <Table>
 #   2. Prawn::Table::Cell.draw_cells — wrap each row/cell in <TR>/<TH>/<TD>
