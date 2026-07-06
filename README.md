@@ -13,9 +13,9 @@ It layers on top of the **published** `prawn`, `pdf-core`, and (optionally)
 `Prawn::Document`; only a couple of small method wrappers remain (and none in
 `pdf-core`).
 
-Tagging is opt-in: create a document with `tagged: true` (the legacy alias
-`marked: true` also works). Without it, output is byte-for-byte identical to
-stock Prawn.
+Tagging is opt-in: create a document with `tagged: true`. Without it, output is
+byte-for-byte identical to stock Prawn. (The old `marked: true` option still
+works but is deprecated and emits a warning — prefer `tagged: true`.)
 
 ## Installation
 

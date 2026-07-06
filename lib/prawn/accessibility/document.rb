@@ -142,7 +142,8 @@ module Prawn
     # Prepended onto {Prawn::Document#initialize} to support the
     # <tt>Prawn::Document.new(tagged: true, language: 'en-US')</tt> API.
     # Tagging is opt-in: a document is tagged only when <tt>tagged: true</tt>
-    # (or the legacy alias <tt>marked: true</tt>) is passed.
+    # (or the deprecated alias <tt>marked: true</tt>, which emits a deprecation
+    # warning) is passed.
     #
     # It strips the accessibility options before delegating to the original
     # initializer (so no change to +VALID_OPTIONS+ is needed), then wires up
@@ -156,6 +157,14 @@ module Prawn
         tagged = opts.delete(:tagged)
         marked = opts.delete(:marked) # legacy alias for `tagged:`
         language = opts.delete(:language)
+
+        if options.key?(:marked)
+          warn(
+            '[prawn-accessibility] the `marked:` option is deprecated and will ' \
+            'be removed in a future release; use `tagged:` instead.',
+            category: :deprecated,
+          )
+        end
 
         # `tagged:` is canonical; fall back to the legacy `marked:` option.
         enabled = tagged.nil? ? marked : tagged

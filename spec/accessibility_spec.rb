@@ -21,6 +21,25 @@ RSpec.describe Prawn::Accessibility do
       end
     end
 
+    describe 'marked: deprecation' do
+      around do |example|
+        original = Warning[:deprecated]
+        Warning[:deprecated] = true
+        example.run
+        Warning[:deprecated] = original
+      end
+
+      it 'warns that marked: is deprecated in favor of tagged:' do
+        expect { Prawn::Document.new(marked: true) }
+          .to output(/marked.*deprecated.*tagged/m).to_stderr
+      end
+
+      it 'does not warn when tagged: is used' do
+        expect { Prawn::Document.new(tagged: true) }
+          .to_not(output(/marked/).to_stderr)
+      end
+    end
+
     describe 'language' do
       it 'sets Lang on the catalog' do
         root_data = pdf.state.store.root.data
