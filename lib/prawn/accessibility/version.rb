@@ -3,6 +3,6 @@
 module Prawn
   module Accessibility
     # Gem version. Follows Semantic Versioning (https://semver.org).
-    VERSION = '1.0.0'
+    VERSION = '1.1.0'
   end
 end
