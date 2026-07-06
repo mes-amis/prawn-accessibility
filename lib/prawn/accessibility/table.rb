@@ -3,6 +3,17 @@
 # Table accessibility patches. This file is only loaded when Prawn::Table is
 # already defined (see prawn/accessibility.rb), so requiring prawn-accessibility
 # without prawn-table installed is safe.
+#
+# prawn-table hard-instantiates Prawn::Table and offers no hook around cell
+# drawing, so these three `prepend`s are the irreducible patching until upstream
+# grows render hooks:
+#
+#   1. Prawn::Table#initialize      — flag header cells (at construction)
+#   2. Prawn::Table#draw            — wrap the whole table in <Table>
+#   3. Prawn::Table::Cell.draw_cells — wrap each row/cell in <TR>/<TH>/<TD>
+#
+# #draw and .draw_cells delegate to `super` in the untagged path, so untagged
+# tables are unchanged. Everything else here is additive (new methods only).
 
 unless defined?(Prawn::Table)
   raise 'prawn/accessibility/table requires prawn-table to be loaded first'
@@ -12,12 +23,14 @@ module Prawn
   module Accessibility
     # Patches applied to the published +prawn-table+ gem so that tables emit
     # +<Table>+/+<TR>+/+<TH>+/+<TD>+ structure elements when the owning document
-    # is tagged. Untagged tables render exactly as upstream (via +super+).
+    # is tagged.
     #
     # @api private
     module TablePatch
-      # Prepended onto {Prawn::Table#initialize} to flag header cells after
-      # the table has been built and positioned.
+      # Prepended onto {Prawn::Table}. Flags header cells at construction (so
+      # +Cell#header?+ is consistent whether or not the table has been drawn),
+      # and wraps drawing in a +<Table>+ structure element when the document is
+      # tagged.
       #
       # @api private
       module TableInstancePatch
@@ -26,8 +39,6 @@ module Prawn
           mark_header_cells
         end
 
-        # Draws the table, wrapping it in a +<Table>+ structure element when
-        # the document is tagged.
         def draw
           if @pdf.respond_to?(:tagged?) && @pdf.tagged?
             @pdf.structure_container(:Table) { super() }

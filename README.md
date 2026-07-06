@@ -9,9 +9,12 @@ headings, paragraphs, figures, tables, and decorative artifacts — so Prawn can
 produce accessible, tagged PDFs that screen readers can navigate.
 
 It layers on top of the **published** `prawn`, `pdf-core`, and (optionally)
-`prawn-table` gems using `prepend` and additive re-opens — it does **not** fork
-them. When you don't opt in (`marked: true`), output is byte-for-byte identical
-to stock Prawn.
+`prawn-table` gems — it does **not** fork them. The document API is mixed into
+`Prawn::Document`; only a couple of small method wrappers remain (and none in
+`pdf-core`).
+
+Tagging is opt-in: create a document with `tagged: true`. Without it, output is
+byte-for-byte identical to stock Prawn.
 
 ## Installation
 
@@ -33,7 +36,8 @@ gem 'prawn-table' # optional; enables <Table>/<TR>/<TH>/<TD> tagging
 ```ruby
 require 'prawn-accessibility'
 
-pdf = Prawn::Document.new(marked: true, language: 'en-US')
+# Opt in with tagged: true; set language: for the document's /Lang.
+pdf = Prawn::Document.new(tagged: true, language: 'en-US')
 
 pdf.heading(1, 'Annual Report')                                   # <H1>
 pdf.paragraph('Body text that a screen reader will read aloud.')  # <P>
@@ -43,11 +47,13 @@ pdf.figure(alt_text: 'Company logo') { pdf.image('logo.png') }    # <Figure> wit
 
 pdf.artifact(type: :Pagination) { pdf.text('Page 1') }            # decorative, not read
 
-# Tables auto-tag when the document is tagged:
+# Tables auto-tag while the document is tagged:
 pdf.table([['Name', 'Age'], ['Alice', '30']], header: true)       # <Table>/<TR>/<TH>/<TD>
 
 pdf.render_file('report.pdf')
 ```
+
+A document created without `tagged: true` renders a plain, untagged PDF.
 
 ### API
 

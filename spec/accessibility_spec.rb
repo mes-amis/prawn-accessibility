@@ -4,14 +4,14 @@ require 'spec_helper'
 
 RSpec.describe Prawn::Accessibility do
   describe 'with tagged document' do
-    let(:pdf) { Prawn::Document.new(marked: true, language: 'en-US') }
+    let(:pdf) { Prawn::Document.new(tagged: true, language: 'en-US') }
 
     describe '#tagged?' do
-      it 'returns true for marked documents' do
+      it 'returns true for tagged documents' do
         expect(pdf).to be_tagged
       end
 
-      it 'returns false for unmarked documents' do
+      it 'returns false for untagged documents' do
         plain = Prawn::Document.new
         expect(plain).to_not(be_tagged)
       end

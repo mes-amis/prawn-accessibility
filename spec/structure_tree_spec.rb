@@ -2,38 +2,23 @@
 
 require 'spec_helper'
 
-RSpec.describe PDF::Core::StructureTree do
-  let(:state) { PDF::Core::DocumentState.new(marked: true) }
-  let(:renderer) { PDF::Core::Renderer.new(state) }
-  let(:structure_tree) { renderer.structure_tree }
+RSpec.describe Prawn::Accessibility::StructureTree do
+  # Built against a plain (unpatched) renderer using only its public API —
+  # this is the whole point of the minimized-patching design.
+  let(:renderer) { PDF::Core::Renderer.new(PDF::Core::DocumentState.new({})) }
+  let(:structure_tree) { described_class.new(renderer) }
 
   before do
     renderer.start_new_page
+    # Finalize the tree at render time, exactly as the document layer wires it.
+    tree = structure_tree
+    renderer.before_render { |_state| tree.finalize! }
   end
 
   describe 'initialization' do
-    it 'creates a structure tree when marked: true' do
+    it 'builds against any renderer via its public API' do
       expect(structure_tree).to be_a(described_class)
-    end
-
-    it 'does not create a structure tree when marked is not set' do
-      plain_renderer = PDF::Core::Renderer.new(
-        PDF::Core::DocumentState.new({}),
-      )
-      expect(plain_renderer.structure_tree).to be_nil
-    end
-  end
-
-  describe '#marked?' do
-    it 'returns true for marked documents' do
-      expect(renderer.marked?).to be true
-    end
-
-    it 'returns false for unmarked documents' do
-      plain_renderer = PDF::Core::Renderer.new(
-        PDF::Core::DocumentState.new({}),
-      )
-      expect(plain_renderer.marked?).to be false
+      expect(structure_tree.renderer).to eq(renderer)
     end
   end
 
@@ -172,11 +157,6 @@ RSpec.describe PDF::Core::StructureTree do
   end
 
   describe '#finalize!' do
-    it 'sets MarkInfo on catalog' do
-      root_data = renderer.state.store.root.data
-      expect(root_data[:MarkInfo]).to eq({ Marked: true })
-    end
-
     it 'builds StructTreeRoot and attaches to catalog after render' do
       structure_tree.begin_element(:P)
       structure_tree.mark_content(:Span) do
@@ -184,7 +164,7 @@ RSpec.describe PDF::Core::StructureTree do
       end
       structure_tree.end_element
 
-      # Render triggers before_render callback which calls finalize!
+      # Render triggers the before_render callback which calls finalize!
       renderer.render
 
       root_data = renderer.state.store.root.data
@@ -230,24 +210,19 @@ RSpec.describe PDF::Core::StructureTree do
       expect(page_dict[:StructParents]).to be_a(Integer)
     end
 
-    it 'produces a valid PDF' do
+    it 'produces a valid PDF with structure elements' do
       structure_tree.begin_element(:H1)
       structure_tree.mark_content(:Span) do
         renderer.add_content('BT /F1 12 Tf (Heading) Tj ET')
       end
       structure_tree.end_element
 
-      structure_tree.begin_element(:P)
-      structure_tree.mark_content(:Span) do
-        renderer.add_content('BT /F1 12 Tf (Body text) Tj ET')
-      end
-      structure_tree.end_element
-
+      # Tagged PDFs require version 1.7; the document layer bumps it via
+      # min_version, so mirror that here for this bare-renderer unit test.
+      renderer.min_version(1.7)
       output = renderer.render
 
       expect(output).to start_with('%PDF-1.7')
-      expect(output).to include('/MarkInfo')
-      expect(output).to include('/Marked true')
       expect(output).to include('/StructTreeRoot')
       expect(output).to include('/StructElem')
     end

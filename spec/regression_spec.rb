@@ -2,12 +2,12 @@
 
 require 'spec_helper'
 
-# These specs guard the core promise of the layering approach: when a document
-# is NOT created with `marked: true`, prawn / pdf-core / prawn-table must behave
-# exactly as they do upstream. Every patched method delegates to `super` in the
-# untagged path, so none of the tagged-PDF machinery should appear in output.
+# Tagging is opt-in: a document is tagged only when created with `tagged: true`.
+# These specs guard that a document created WITHOUT it behaves exactly like
+# stock Prawn (every patched method delegates to `super` on the untagged path),
+# so adding this gem to a bundle changes nothing until a document opts in.
 RSpec.describe 'Untagged output is unaffected by prawn-accessibility' do
-  describe 'a plain document' do
+  describe 'a plain document (no tagged: option)' do
     let(:pdf) { Prawn::Document.new }
 
     it 'is not tagged' do
@@ -26,7 +26,7 @@ RSpec.describe 'Untagged output is unaffected by prawn-accessibility' do
       expect(output).to_not(include('/Artifact'))
     end
 
-    it 'still produces a valid PDF at the default version' do
+    it 'keeps the stock PDF version' do
       pdf.text('Content')
       output = pdf.render
 
@@ -47,26 +47,24 @@ RSpec.describe 'Untagged output is unaffected by prawn-accessibility' do
       expect(output).to_not(include('/TD'))
     end
 
-    it 'leaves cells unflagged as headers' do
+    it 'still flags header cells at construction (consistent whether tagged or not)' do
       pdf = Prawn::Document.new
       table = pdf.make_table([%w[Name Age], %w[Alice 30]], header: true)
 
-      # The is_header_cell accessor exists (additive re-open) but plays no
-      # role in output for an untagged document.
       expect(table.cells[0, 0]).to be_header
       expect(table.cells[1, 0]).to_not(be_header)
     end
   end
 
-  describe 'opting in still works alongside the untagged path' do
-    it 'produces a 1.7 tagged PDF only when marked' do
-      tagged = Prawn::Document.new(marked: true)
-      tagged.heading(1, 'Title')
-      expect(tagged.render).to start_with('%PDF-1.7')
+  describe 'opting in with tagged: true' do
+    it 'produces a 1.7 tagged PDF' do
+      pdf = Prawn::Document.new(tagged: true)
+      pdf.heading(1, 'Title')
+      output = pdf.render
 
-      plain = Prawn::Document.new
-      plain.text('Title')
-      expect(plain.render).to_not(start_with('%PDF-1.7'))
+      expect(output).to start_with('%PDF-1.7')
+      expect(output).to include('/MarkInfo')
+      expect(output).to include('/StructTreeRoot')
     end
   end
 end

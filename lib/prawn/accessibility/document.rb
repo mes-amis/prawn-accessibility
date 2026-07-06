@@ -1,35 +1,36 @@
 # frozen_string_literal: true
 
 require 'prawn'
-require_relative 'pdf_core'
+require_relative 'structure_tree'
 
 module Prawn
   module Accessibility
-    # Instance methods mixed into {Prawn::Document} to provide the high-level
-    # tagged-PDF (accessibility) API. When a document is created with
-    # <tt>marked: true</tt>, content can be wrapped in structure elements that
-    # screen readers and assistive technologies use to navigate the document.
+    # Instance methods included into {Prawn::Document} to provide the
+    # high-level tagged-PDF (accessibility) API.
+    #
+    # Tagging is opt-in: create the document with <tt>tagged: true</tt> (see the
+    # initializer shim at the bottom of this file). Everything here is built on
+    # Prawn/pdf-core's *public* API (`renderer`, `state`, `min_version`,
+    # `before_render`); no core class is patched to support it.
     #
     # @example
-    #   pdf = Prawn::Document.new(marked: true, language: 'en-US')
-    #
-    #   pdf.structure(:H1) do
-    #     pdf.text 'Document Title'
-    #   end
-    #
-    #   pdf.structure(:P) do
-    #     pdf.text 'Body paragraph text.'
-    #   end
-    #
-    #   pdf.artifact do
-    #     pdf.text 'Page 1'  # not read by screen readers
-    #   end
+    #   pdf = Prawn::Document.new(tagged: true, language: 'en-US')
+    #   pdf.structure(:H1) { pdf.text 'Document Title' }
+    #   pdf.structure(:P)  { pdf.text 'Body paragraph text.' }
+    #   pdf.artifact       { pdf.text 'Page 1' } # not read by screen readers
     module DocumentExtensions
+      # The structure tree for this document, or nil if not tagged.
+      #
+      # @return [Prawn::Accessibility::StructureTree, nil]
+      def structure_tree
+        @accessibility_structure_tree
+      end
+
       # Whether this document is tagged for accessibility.
       #
       # @return [Boolean]
       def tagged?
-        renderer.marked?
+        !@accessibility_structure_tree.nil?
       end
 
       # Wrap content in a structure element. The block's content will be
@@ -52,7 +53,7 @@ module Prawn
       def structure(tag, attributes = {}, &block)
         return yield if !tagged? || !block
 
-        tree = renderer.structure_tree
+        tree = structure_tree
         tree.begin_element(tag, attributes)
         tree.mark_content(tag, &block)
         tree.end_element
@@ -69,7 +70,7 @@ module Prawn
       def structure_container(tag, attributes = {}, &block)
         return yield if !tagged? || !block
 
-        tree = renderer.structure_tree
+        tree = structure_tree
         tree.begin_element(tag, attributes)
         yield
         tree.end_element
@@ -85,7 +86,7 @@ module Prawn
       def artifact(type: nil, &block)
         return yield if !tagged? || !block
 
-        renderer.structure_tree.mark_artifact(artifact_type: type, &block)
+        structure_tree.mark_artifact(artifact_type: type, &block)
       end
 
       # Render a heading at the specified level.
@@ -136,18 +137,56 @@ module Prawn
         end
       end
     end
+
+    # Prepended onto {Prawn::Document#initialize} to support the
+    # <tt>Prawn::Document.new(tagged: true, language: 'en-US')</tt> API.
+    # Tagging is opt-in: a document is tagged only when <tt>tagged: true</tt> is
+    # passed.
+    #
+    # It strips the accessibility options before delegating to the original
+    # initializer (so no change to +VALID_OPTIONS+ is needed), then wires up
+    # tagging and runs the user block — in that order, so the block runs with
+    # tagging already active.
+    #
+    # @api private
+    module OptionInitializer
+      def initialize(options = {}, &block)
+        opts = options.dup
+        tagged = opts.delete(:tagged)
+        language = opts.delete(:language)
+
+        # Delegate to the original initializer WITHOUT the block, so we can run
+        # it ourselves after tagging is wired up.
+        super(opts)
+
+        install_accessibility(language) if tagged
+
+        return unless block
+
+        block.arity < 1 ? instance_eval(&block) : block[self]
+      end
+
+      private
+
+      # Set up tagged-PDF output: mark the catalog, create the structure tree,
+      # bump the PDF version to 1.7, and finalize the tree at render time via
+      # the renderer's public `before_render` hook.
+      #
+      # @param language [String, nil] optional document language (BCP 47 tag)
+      # @return [void]
+      def install_accessibility(language)
+        catalog = state.store.root.data
+        catalog[:MarkInfo] = { Marked: true }
+        catalog[:Lang] = language if language
+
+        @accessibility_structure_tree = Prawn::Accessibility::StructureTree.new(renderer)
+        renderer.min_version(1.7)
+        tree = @accessibility_structure_tree
+        renderer.before_render { |_state| tree.finalize! }
+      end
+    end
   end
 end
 
-# --- Patches applied to Prawn::Document -------------------------------------
-
-# Accept the accessibility options in Prawn::Document.new. VALID_OPTIONS is a
-# frozen constant; redefine it (remove + set avoids the redefinition warning).
-original_valid_options = Prawn::Document::VALID_OPTIONS
-Prawn::Document.send(:remove_const, :VALID_OPTIONS)
-Prawn::Document.const_set(
-  :VALID_OPTIONS,
-  (original_valid_options + %i[marked language]).freeze,
-)
-
 Prawn::Document.include(Prawn::Accessibility::DocumentExtensions)
+Prawn::Document.prepend(Prawn::Accessibility::OptionInitializer)

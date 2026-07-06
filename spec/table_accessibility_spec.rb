@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 RSpec.describe 'Table Accessibility' do
-  let(:pdf) { Prawn::Document.new(marked: true, language: 'en-US', margin: 0) }
+  let(:pdf) { Prawn::Document.new(tagged: true, language: 'en-US', margin: 0) }
 
   describe 'tagged table rendering' do
     it 'wraps the table in a Table structure element' do
@@ -66,7 +66,7 @@ RSpec.describe 'Table Accessibility' do
   end
 
   describe 'untagged table rendering' do
-    it 'does not emit structure tags when not marked' do
+    it 'does not emit structure tags when not tagged' do
       plain_pdf = Prawn::Document.new(margin: 0)
       data = [['Name', 'Age'], ['Alice', '30']]
       plain_pdf.table(data, header: true)
@@ -79,6 +79,8 @@ RSpec.describe 'Table Accessibility' do
   end
 
   describe 'Cell#header?' do
+    # Header flags are applied at construction, so they are available from
+    # #make_table without drawing.
     it 'returns true for cells in header rows' do
       data = [['Name', 'Age'], ['Alice', '30']]
       table = pdf.make_table(data, header: true)
