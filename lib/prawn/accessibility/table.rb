@@ -103,16 +103,28 @@ module Prawn
                 # Borders are decorative
                 pdf.artifact(type: :Layout) { cell.draw_borders(pt) }
 
-                # Content gets TH or TD tag
-                tag = cell.header? ? :TH : :TD
-                attrs = {}
-                attrs[:Scope] = :Column if tag == :TH
-
-                pdf.structure(tag, attrs) do
-                  cell.draw_content_only(pt)
-                end
+                draw_tagged_cell_content(cell, pt, pdf)
               end
             end
+          end
+        end
+
+        # Draw a cell's content inside a TH or TD structure element.
+        #
+        # A subtable cell's content is another table, which tags its own
+        # <Table>/<TR>/<TD> and artifacts, so its TH/TD is a container rather
+        # than a marked-content sequence (marked content must not nest tagged
+        # content or artifacts inside it).
+        #
+        # @api private
+        def draw_tagged_cell_content(cell, pt, pdf)
+          tag = cell.header? ? :TH : :TD
+          attrs = tag == :TH ? { Scope: :Column } : {}
+
+          if cell.is_a?(Prawn::Table::Cell::Subtable)
+            pdf.structure_container(tag, attrs) { cell.draw_content_only(pt) }
+          else
+            pdf.structure(tag, attrs) { cell.draw_content_only(pt) }
           end
         end
       end

@@ -3,6 +3,14 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+- **Fix: table cells containing a subtable.** A subtable cell's TH/TD was a
+  marked-content sequence, so the inner table's tagged cells and its
+  background/border artifacts were nested inside it. It is now a structure
+  container whose child is the inner `<Table>`. Paint order is unchanged
+  (identical to an untagged table).
+
 ## [1.1.1] - 2026-07-06
 
 - Simplify the gem description. Metadata only — no code changes.
