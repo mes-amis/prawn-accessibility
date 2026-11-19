@@ -50,6 +50,8 @@ module Prawn
         @next_mcid = 0
         @element_stack = []
         @page_mcid_map = {} # page_ref_id => next mcid for that page
+        @annotation_parents = {} # StructParent key => owning structure element
+        @next_struct_parent_key = 0 # shared by pages and annotations
         @root_ref = nil
         @document_elem_ref = nil
       end
@@ -178,6 +180,31 @@ module Prawn
         end_marked_content
       end
 
+      # Tie an annotation into the structure tree (ISO 32000-1, 14.8.4.4.2).
+      #
+      # The annotation is referenced by an OBJR from a <Link> structure element:
+      # the current element if it is a Link, otherwise a new Link child of the
+      # current element. The annotation gets a /StructParent key (from the same
+      # key space as pages' /StructParents) whose ParentTree entry is that
+      # Link element, and +contents+ as its /Contents unless it already has one.
+      #
+      # @param annotation_ref [PDF::Core::Reference] the Link annotation
+      # @param contents [String, nil] alternate description of the link
+      # @return [PDF::Core::Reference] the Link structure element
+      def add_link_annotation(annotation_ref, contents: nil)
+        parent = current_element || document_element
+        link = renderer.deref(parent)[:S] == :Link ? parent : add_element(:Link)
+
+        annotation = renderer.deref(annotation_ref)
+        annotation[:Contents] ||= contents if contents
+        annotation[:StructParent] = next_struct_parent_key
+        @annotation_parents[annotation[:StructParent]] = link
+
+        page_ref = renderer.state.page.dictionary
+        renderer.deref(link)[:K] << { Type: :OBJR, Obj: annotation_ref, Pg: page_ref }
+        link
+      end
+
       # Finalize the structure tree before rendering. Called via
       # before_render callback.
       #
@@ -192,6 +219,9 @@ module Prawn
         build_parent_tree
         assign_struct_parents_to_pages
         attach_to_catalog
+
+        # Visit annotations in structure order (ISO 14289-1, 7.18.3).
+        renderer.state.pages.each { |page| page.dictionary.data[:Tabs] = :S }
       end
 
       private
@@ -233,8 +263,17 @@ module Prawn
       # @param page_ref [PDF::Core::Reference] page dictionary reference
       # @return [Integer] the StructParents index
       def page_struct_parents_index(page_ref)
-        page_ref.data[:StructParents] ||= @parent_tree_map.size
-        page_ref.data[:StructParents]
+        page_ref.data[:StructParents] ||= next_struct_parent_key
+      end
+
+      # Allocate the next ParentTree key. Pages' /StructParents and
+      # annotations' /StructParent share one key space.
+      #
+      # @return [Integer]
+      def next_struct_parent_key
+        key = @next_struct_parent_key
+        @next_struct_parent_key += 1
+        key
       end
 
       # Build the StructTreeRoot object.
@@ -252,22 +291,21 @@ module Prawn
         doc_data[:P] = @root_ref
       end
 
-      # Build the ParentTree (a number tree mapping StructParents indices
-      # to arrays of structure element references).
+      # Build the ParentTree (a number tree mapping a page's StructParents
+      # index to an array of structure element references indexed by MCID, and
+      # an annotation's StructParent key directly to its structure element).
       #
       # @return [void]
       def build_parent_tree
         # ParentTree is a number tree. For simplicity, use a flat Nums array
         # since most documents won't have enough pages to need a balanced tree.
-        nums = []
-        @parent_tree_map.sort_by { |k, _| k }.each do |index, elem_array|
-          nums << index
-          nums << renderer.ref!(elem_array)
-        end
+        entries = @parent_tree_map.map { |index, elem_array| [index, renderer.ref!(elem_array)] }
+        nums = (entries + @annotation_parents.to_a).sort_by(&:first).flatten(1)
 
         parent_tree_ref = renderer.ref!(Type: :ParentTree, Nums: nums)
         root_data = renderer.deref(@root_ref)
         root_data[:ParentTree] = parent_tree_ref
+        root_data[:ParentTreeNextKey] = @next_struct_parent_key
       end
 
       # Ensure each page that has marked content has a StructParents entry.

@@ -47,6 +47,15 @@ pdf.figure(alt_text: 'Company logo') { pdf.image('logo.png') }    # <Figure> wit
 
 pdf.artifact(type: :Pagination) { pdf.text('Page 1') }            # decorative, not read
 
+# Link annotations are tagged automatically (<Link>, /Contents = URI); use
+# link to group the link text with its annotation and describe it:
+pdf.structure_container(:P) do
+  pdf.link('Prawn on GitHub') do                                  # <Link>
+    pdf.text('<link href="https://github.com/prawnpdf/prawn">Prawn</link>',
+             inline_format: true)
+  end
+end
+
 # Tables auto-tag while the document is tagged:
 pdf.table([['Name', 'Age'], ['Alice', '30']], header: true)       # <Table>/<TR>/<TH>/<TD>
 
@@ -66,6 +75,12 @@ A document created without `tagged: true` renders a plain, untagged PDF.
 | `pdf.heading(level, text, opts)` | `<H1>`–`<H6>` |
 | `pdf.paragraph(text, opts)` / `{ … }` | `<P>` |
 | `pdf.figure(alt_text:) { … }` | `<Figure>` with `/Alt` |
+| `pdf.link(description = nil) { … }` | `<Link>` holding the block's link annotations, with `description` as their `/Contents` |
+
+Every Link annotation in a tagged document is referenced from a `<Link>`
+structure element (the enclosing one, or a new one) and gets a `/StructParent`
+and a `/Contents` (the `link` description, or else its URI). Internal links
+(`Dest`) have no URI, so give them a description with `link`.
 
 Supported structure attributes: `:Alt`, `:ActualText`, `:Lang`, `:Scope`.
 
