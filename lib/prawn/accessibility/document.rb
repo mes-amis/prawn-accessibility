@@ -136,6 +136,46 @@ module Prawn
           yield
         end
       end
+
+      # Render content wrapped in a Link structure element. Link annotations
+      # created in the block (e.g. by <tt><link href="..."></tt> with
+      # <tt>inline_format: true</tt>) are referenced from this element, and get
+      # +description+ as their /Contents (alternate description).
+      #
+      # Link annotations created outside this helper are still tagged: each
+      # gets its own Link element, and its URI as /Contents.
+      #
+      # @param description [String, nil] alternate description for the link
+      #   annotations; defaults to each annotation's URI
+      # @yield content containing the link
+      # @return [void]
+      def link(description = nil, &block)
+        return yield unless tagged?
+
+        previous = @accessibility_link_description
+        @accessibility_link_description = description
+        structure(:Link, &block)
+      ensure
+        @accessibility_link_description = previous if tagged?
+      end
+
+      # Adds an annotation to the current page (see
+      # PDF::Core::Annotations#annotate). In a tagged document, a Link
+      # annotation is also tied into the structure tree.
+      #
+      # @param options [Hash] annotation dictionary
+      # @return [Hash] the annotation dictionary
+      def annotate(options)
+        result = super
+        return result unless tagged? && result[:Subtype] == :Link
+
+        contents = @accessibility_link_description || result.dig(:A, :URI)&.to_s
+        structure_tree.add_link_annotation(
+          state.page.dictionary.data[:Annots].last,
+          contents: contents,
+        )
+        result
+      end
     end
 
     # Prepended onto {Prawn::Document#initialize} to support the

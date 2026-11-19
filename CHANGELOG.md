@@ -3,6 +3,20 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+- **Link annotations are tagged.** In a tagged document every Link annotation
+  is referenced by an OBJR from a `<Link>` structure element (the enclosing
+  element if it is a Link, otherwise a new Link child), has a `/StructParent`
+  whose ParentTree entry is that element, and gets `/Contents` (its URI unless
+  the caller supplied one).
+- **New `link(description = nil) { … }` helper** wraps content in a `<Link>`
+  element; link annotations created in the block use `description` as their
+  `/Contents`.
+- Pages' `/StructParents` and annotations' `/StructParent` now share one key
+  space, and the StructTreeRoot has `/ParentTreeNextKey`. Every page of a
+  tagged document gets `/Tabs /S`.
+
 ## [1.1.1] - 2026-07-06
 
 - Simplify the gem description. Metadata only — no code changes.
