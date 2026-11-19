@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+- **New `pdf_ua: true` document option** (requires `tagged: true`) declares
+  PDF/UA-1 conformance: the Catalog gets `/ViewerPreferences` with
+  `/DisplayDocTitle true` and an XMP `/Metadata` stream with `dc:title` (from
+  `info[:Title]`) and `pdfuaid:part` 1. It only declares conformance, so the
+  document must still be fully tagged. Passing `pdf_ua: true` without
+  `tagged: true` raises `ArgumentError`.
+
 ## [1.1.1] - 2026-07-06
 
 - Simplify the gem description. Metadata only — no code changes.
