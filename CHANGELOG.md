@@ -3,6 +3,16 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+- **Fix: marked content across page breaks.** Content that flowed onto another
+  page (a long paragraph, an artifact, or anything Prawn moved with
+  `start_new_page` or `go_to_page`) left a BDC open on one page and its EMC on
+  the next, so neither content stream was balanced. Open marked-content
+  sequences are now closed before the page changes and reopened on the new
+  page; tagged content gets a fresh MCID there that refers to the same
+  structure element.
+
 ## [1.1.1] - 2026-07-06
 
 - Simplify the gem description. Metadata only — no code changes.

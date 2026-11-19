@@ -156,6 +156,45 @@ RSpec.describe Prawn::Accessibility::StructureTree do
     end
   end
 
+  describe '#across_page_change' do
+    def streams
+      renderer.state.pages.map { |page| page.content.stream.filtered_stream }
+    end
+
+    it 'closes open sequences on the old page and reopens them on the new one' do
+      para = structure_tree.begin_element(:P)
+      structure_tree.mark_content(:P) do
+        span = structure_tree.begin_element(:Span)
+        structure_tree.mark_content(:Span) do
+          renderer.add_content('one')
+          structure_tree.across_page_change { renderer.start_new_page }
+          renderer.add_content('two')
+        end
+        structure_tree.end_element
+        expect(span.data[:K].map { |mcr| mcr[:MCID] }).to eq([1, 1])
+      end
+      structure_tree.end_element
+
+      first, second = streams
+      expect(first).to match(%r{/P << /MCID 0\s+>> BDC\s+/Span << /MCID 1\s+>> BDC\s+one\s+EMC\s+EMC})
+      expect(second).to match(%r{/P << /MCID 0\s+>> BDC\s+/Span << /MCID 1\s+>> BDC\s+two\s+EMC\s+EMC})
+
+      pages = renderer.state.pages.map(&:dictionary)
+      expected = [{ Type: :MCR, MCID: 0, Pg: pages[0] }, { Type: :MCR, MCID: 0, Pg: pages[1] }]
+      expect(para.data[:K].grep(Hash)).to eq(expected)
+    end
+
+    it 'only yields when nothing is open' do
+      structure_tree.across_page_change { renderer.start_new_page }
+
+      expect(streams.join).to_not(include('EMC'))
+    end
+
+    it 'returns the result of the block' do
+      expect(structure_tree.across_page_change { :changed }).to eq(:changed)
+    end
+  end
+
   describe '#finalize!' do
     it 'builds StructTreeRoot and attaches to catalog after render' do
       structure_tree.begin_element(:P)

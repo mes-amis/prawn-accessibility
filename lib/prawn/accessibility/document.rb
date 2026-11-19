@@ -185,8 +185,33 @@ module Prawn
         renderer.before_render { |_state| tree.finalize! }
       end
     end
+
+    # Prepended onto {Prawn::Document#start_new_page} and
+    # {Prawn::Document#go_to_page} so that marked content open when the page
+    # changes (e.g. a paragraph that flows onto the next page) is closed on the
+    # old page and reopened on the new one. See
+    # {StructureTree#across_page_change}.
+    #
+    # Untagged documents, and page changes with no marked content open, go
+    # straight to +super+.
+    #
+    # @api private
+    module PageChangeHooks
+      def start_new_page(options = {})
+        return super unless tagged?
+
+        structure_tree.across_page_change { super }
+      end
+
+      def go_to_page(page_number)
+        return super if !tagged? || page_number == self.page_number
+
+        structure_tree.across_page_change { super }
+      end
+    end
   end
 end
 
 Prawn::Document.include(Prawn::Accessibility::DocumentExtensions)
 Prawn::Document.prepend(Prawn::Accessibility::OptionInitializer)
+Prawn::Document.prepend(Prawn::Accessibility::PageChangeHooks)

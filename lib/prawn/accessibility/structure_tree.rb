@@ -50,6 +50,7 @@ module Prawn
         @next_mcid = 0
         @element_stack = []
         @page_mcid_map = {} # page_ref_id => next mcid for that page
+        @open_sequences = [] # marked-content sequences not yet closed
         @root_ref = nil
         @document_elem_ref = nil
       end
@@ -133,49 +134,50 @@ module Prawn
       # This allocates an MCID, records the mapping, and emits BDC/EMC
       # operators around the yielded block.
       #
+      # If the block changes page (see {#across_page_change}), the sequence is
+      # closed on the old page and reopened on the new one with a fresh MCID
+      # that refers to the same structure element.
+      #
       # @param tag [Symbol] marked content tag (e.g., :P, :Span)
       # @param struct_elem_ref [PDF::Core::Reference, nil] the structure element
       #   this content belongs to. If nil, uses current_element.
       # @yield content to render inside the marked content sequence
       # @return [void]
-      def mark_content(tag, struct_elem_ref: nil)
+      def mark_content(tag, struct_elem_ref: nil, &block)
         elem_ref = struct_elem_ref || current_element || document_element
-        mcid = allocate_mcid
-        page = renderer.state.page
-        page_ref = page.dictionary
-
-        # Record in parent tree map
-        page_struct_parents = page_struct_parents_index(page_ref)
-        @parent_tree_map[page_struct_parents] ||= []
-
-        # Add marked content reference to the structure element's K array
-        mcr = { Type: :MCR, MCID: mcid, Pg: page_ref }
-        elem_data = renderer.deref(elem_ref)
-        elem_data[:K] << mcr
-
-        # Track which struct element owns this MCID on this page
-        @parent_tree_map[page_struct_parents][mcid] = elem_ref
-
-        # Emit BDC/EMC in content stream (via the MarkedContent mixin)
-        begin_marked_content_with_properties(tag, { MCID: mcid })
-        yield if block_given?
-        end_marked_content
+        with_open_sequence({ tag: tag, elem: elem_ref }, &block)
       end
 
       # Mark content as an artifact (decorative, not read by screen readers).
+      #
+      # Like {#mark_content}, the artifact is closed and reopened if the block
+      # changes page.
       #
       # @param artifact_type [Symbol, nil] optional artifact type
       #   (:Pagination, :Layout, :Page, :Background)
       # @yield content to render as artifact
       # @return [void]
-      def mark_artifact(artifact_type: nil)
-        if artifact_type
-          begin_marked_content_with_properties(:Artifact, { Type: artifact_type })
-        else
-          begin_marked_content(:Artifact)
-        end
-        yield if block_given?
-        end_marked_content
+      def mark_artifact(artifact_type: nil, &block)
+        with_open_sequence({ artifact: true, type: artifact_type }, &block)
+      end
+
+      # Keep open marked-content sequences balanced across a page change.
+      #
+      # A marked-content sequence must begin and end in the same content
+      # stream. Every open sequence is closed (innermost first) on the current
+      # page, the block is yielded to change page, and the sequences are
+      # reopened (outermost first) on the new current page. Reopened tagged
+      # sequences get a new MCID referencing the same structure element.
+      #
+      # @yield the page change
+      # @return [Object] the block's result
+      def across_page_change
+        return yield if @open_sequences.empty?
+
+        @open_sequences.size.times { end_marked_content }
+        result = yield
+        @open_sequences.each { |sequence| begin_sequence(sequence) }
+        result
       end
 
       # Finalize the structure tree before rendering. Called via
@@ -195,6 +197,54 @@ module Prawn
       end
 
       private
+
+      # Open a sequence, yield, and close it, tracking it while it is open so
+      # {#across_page_change} can carry it onto a new page.
+      #
+      # @param sequence [Hash] see {#begin_sequence}
+      # @return [void]
+      def with_open_sequence(sequence)
+        begin_sequence(sequence)
+        @open_sequences.push(sequence)
+        yield if block_given?
+        @open_sequences.pop
+        end_marked_content
+      end
+
+      # Emit the opening operator for a sequence on the current page.
+      #
+      # A tagged sequence (<tt>{ tag:, elem: }</tt>) allocates an MCID on the
+      # current page, records it in the ParentTree map, and adds a marked
+      # content reference to the element's K array. An artifact sequence
+      # (<tt>{ artifact: true, type: }</tt>) emits /Artifact BMC, or BDC with
+      # a /Type when one is given.
+      #
+      # @param sequence [Hash]
+      # @return [void]
+      def begin_sequence(sequence)
+        return begin_artifact(sequence[:type]) if sequence[:artifact]
+
+        elem_ref = sequence[:elem]
+        mcid = allocate_mcid
+        page_ref = renderer.state.page.dictionary
+
+        # Record which element owns this MCID on this page, and reference the
+        # marked content from the element's K array.
+        (@parent_tree_map[page_struct_parents_index(page_ref)] ||= [])[mcid] = elem_ref
+        renderer.deref(elem_ref)[:K] << { Type: :MCR, MCID: mcid, Pg: page_ref }
+
+        begin_marked_content_with_properties(sequence[:tag], { MCID: mcid })
+      end
+
+      # @param artifact_type [Symbol, nil]
+      # @return [void]
+      def begin_artifact(artifact_type)
+        if artifact_type
+          begin_marked_content_with_properties(:Artifact, { Type: artifact_type })
+        else
+          begin_marked_content(:Artifact)
+        end
+      end
 
       # Forward content emission (used by the MarkedContent mixin) to the
       # renderer's public API.
