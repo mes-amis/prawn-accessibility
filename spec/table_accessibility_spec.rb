@@ -99,4 +99,58 @@ RSpec.describe 'Table Accessibility' do
       expect(table.cells[0, 0]).not_to be_header
     end
   end
+
+  describe 'a cell containing a subtable' do
+    def draw_nested(doc)
+      inner = doc.make_table([%w[x y]], cell_style: { background_color: 'EEEEEE' })
+      doc.table([['A', 'B'], ['C', inner]], cell_style: { background_color: 'DDDDDD' })
+    end
+
+    # Each marked-content operator on the page, as [:open, tag, mcid] or [:close].
+    def marked_content_ops(doc)
+      stream = doc.state.page.content.stream.filtered_stream
+      stream.scan(%r{/(\w+)\s*(<<[^>]*>>)?\s*B[DM]C|\bEMC\b}).map do |tag, props|
+        tag ? [:open, tag, props.to_s[/MCID (\d+)/, 1]] : [:close]
+      end
+    end
+
+    def struct_kids(elem_ref)
+      elem_ref.data[:K].grep(PDF::Core::Reference)
+    end
+
+    before { draw_nested(pdf) }
+
+    it 'opens no marked content inside a tagged cell sequence' do
+      stack = []
+      marked_content_ops(pdf).each do |op, tag, mcid|
+        if op == :close
+          stack.pop
+        else
+          expect(stack.last).to be_nil, "#{tag} opened inside tagged #{stack.last}"
+          stack.push(mcid && tag)
+        end
+      end
+    end
+
+    it 'makes the outer TD a container of the inner Table' do
+      outer_table = struct_kids(pdf.structure_tree.document_elem_ref).first
+      second_row = struct_kids(outer_table)[1]
+      subtable_td = struct_kids(second_row)[1]
+
+      expect(subtable_td.data[:S]).to eq(:TD)
+      expect(subtable_td.data[:K].grep(Hash)).to be_empty
+      expect(struct_kids(subtable_td).map { |kid| kid.data[:S] }).to eq([:Table])
+    end
+
+    it 'paints in the same order as an untagged table' do
+      plain = Prawn::Document.new(margin: 0)
+      draw_nested(plain)
+
+      drawing = lambda do |doc|
+        doc.state.page.content.stream.filtered_stream
+           .gsub(%r{/\w+\s*(<<[^>]*>>)?\s*B[DM]C|\bEMC\b}, '').split
+      end
+      expect(drawing.call(pdf)).to eq(drawing.call(plain))
+    end
+  end
 end
