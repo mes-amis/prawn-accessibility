@@ -2,6 +2,7 @@
 
 require 'prawn'
 require_relative 'structure_tree'
+require_relative 'pdf_ua'
 
 module Prawn
   module Accessibility
@@ -139,9 +140,11 @@ module Prawn
     end
 
     # Prepended onto {Prawn::Document#initialize} to support the
-    # <tt>Prawn::Document.new(tagged: true, language: 'en-US')</tt> API.
-    # Tagging is opt-in: a document is tagged only when <tt>tagged: true</tt> is
-    # passed.
+    # <tt>Prawn::Document.new(tagged: true, language: 'en-US', pdf_ua: true)</tt>
+    # API. Tagging is opt-in: a document is tagged only when
+    # <tt>tagged: true</tt> is passed. <tt>pdf_ua: true</tt> additionally
+    # declares PDF/UA-1 conformance (see {PdfUa}) and requires
+    # <tt>tagged: true</tt>.
     #
     # It strips the accessibility options before delegating to the original
     # initializer (so no change to +VALID_OPTIONS+ is needed), then wires up
@@ -154,12 +157,15 @@ module Prawn
         opts = options.dup
         tagged = opts.delete(:tagged)
         language = opts.delete(:language)
+        pdf_ua = opts.delete(:pdf_ua)
+        raise ArgumentError, 'pdf_ua: true requires tagged: true' if pdf_ua && !tagged
 
         # Delegate to the original initializer WITHOUT the block, so we can run
         # it ourselves after tagging is wired up.
         super(opts)
 
         install_accessibility(language) if tagged
+        PdfUa.install(renderer) if pdf_ua
 
         return unless block
 

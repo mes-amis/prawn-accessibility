@@ -55,6 +55,25 @@ pdf.render_file('report.pdf')
 
 A document created without `tagged: true` renders a plain, untagged PDF.
 
+### PDF/UA
+
+Pass `pdf_ua: true` (together with `tagged: true`) to identify the file as
+PDF/UA-1 (ISO 14289-1):
+
+```ruby
+pdf = Prawn::Document.new(tagged: true, pdf_ua: true, language: 'en-US',
+                          info: { Title: 'Annual Report' })
+```
+
+This adds `/ViewerPreferences << /DisplayDocTitle true >>` and an XMP metadata
+stream with `dc:title` (from `info[:Title]`) and `pdfuaid:part` 1. Without it,
+validators such as veraPDF fail ISO 14289-1 7.1-8 on every file.
+
+`pdf_ua: true` only **declares** conformance. Tag all content
+(structure elements, `artifact` for decoration, `figure` alt text, and so on),
+set `info: { Title: … }` and `language:`, and use embedded fonts, or the
+declaration is false. Validate the output with a PDF/UA checker.
+
 ### API
 
 | Method | Emits |
